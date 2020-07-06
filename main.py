@@ -2,7 +2,7 @@
 import os
 from xml.etree.ElementTree import parse
 import csv
-
+import sys
 
 # mob 불러와서 리스트에 담은 후 리턴
 def mobLoad():
@@ -11,11 +11,21 @@ def mobLoad():
         tree = parse('./Mob/' + mob)
         root = tree.getroot()
 
+        # 경험치가 없는 몬스터는 패스~
         try:
-            exp = int(root.find('./imgdir[@name="info"]/int[@name="exp"]').attrib['value'])
-            mobList[mob.split('.')[0]] = exp
+            root.find('./imgdir[@name="info"]/int[@name="exp"]').attrib['value']
         except AttributeError:
             continue
+
+        # 해당 몬스터 아이디로 딕셔너리 생성
+        mobId = mob.split('.')[0]
+        mobList[mobId] = {}
+
+        # 해당 몬스터의 레벨과 경험치 구하기
+        exp = int(root.find('./imgdir[@name="info"]/int[@name="exp"]').attrib['value'])
+        level = int(root.find('./imgdir[@name="info"]/int[@name="level"]').attrib['value'])
+        mobList[mobId]['exp'] = exp
+        mobList[mobId]['level'] = level
 
     return mobList
 
@@ -57,8 +67,8 @@ def addMapName(mapList):
     for id, value in mapList.items():
         try:
             stringMap = root.find('.//imgdir[@name="{}"]'.format(int(id)))
-            value['name'] = stringMap.find('./string[@name="streetName"]').attrib['value'] + ' : ' + \
-                            stringMap.find('./string[@name="mapName"]').attrib['value']
+            value['streetName'] = stringMap.find('./string[@name="streetName"]').attrib['value']
+            value['mapName'] = stringMap.find('./string[@name="mapName"]').attrib['value']
         except AttributeError:
             continue
 
@@ -71,18 +81,21 @@ mapList = addMapName(mapLoad())
 for id, value in mapList.items():
     try:
         sumExp = 0
+        sumLevel = 0
         for mob in value['life']:
-            sumExp += mobList[mob]
-        value['mapExp'] = sumExp * value['mobRate']
+            sumExp += mobList[mob]['exp']
+            sumLevel += mobList[mob]['level']
+        value['mapExp'] = int(sumExp * value['mobRate'])
+        value['avgLevel'] = int(sumLevel / len(value['life']))
     except KeyError:
         continue
 
 f = open('맵별 경험치 효율.csv', 'w', newline='')
 wr = csv.writer(f)
-wr.writerow(['이름', '경험치 효율'])
+wr.writerow(['ID', '거리 이름', '맵 이름', '평균 레벨', '경험치 효율'])
 for id, value in mapList.items():
     try:
-        wr.writerow([value['name'], value['mapExp']])
+        wr.writerow([id, value['streetName'], value['mapName'], value['avgLevel'], value['mapExp']])
     except KeyError:
         continue
 f.close()
