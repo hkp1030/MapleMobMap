@@ -3,6 +3,8 @@
   <component name="ChangeListManager">
     <list default="true" id="183a3970-eddf-483e-b24d-e56414d6cd65" name="Default Changelist" comment="">
       <change afterPath="$PROJECT_DIR$/.idea/vcs.xml" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/README.md" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/main.py" beforeDir="false" afterPath="$PROJECT_DIR$/main.py" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
@@ -70,7 +72,19 @@
       <option name="presentableId" value="Default" />
       <updated>1593611947082</updated>
     </task>
+    <task id="LOCAL-00001" summary="README.md 추가">
+      <created>1594017141814</created>
+      <option name="number" value="00001" />
+      <option name="presentableId" value="LOCAL-00001" />
+      <option name="project" value="LOCAL" />
+      <updated>1594017141814</updated>
+    </task>
+    <option name="localTasksCounter" value="2" />
     <servers />
+  </component>
+  <component name="VcsManagerConfiguration">
+    <MESSAGE value="README.md 추가" />
+    <option name="LAST_COMMIT_MESSAGE" value="README.md 추가" />
   </component>
   <component name="WindowStateProjectService">
     <state x="649" y="227" key="FileChooserDialogImpl" timestamp="1593699369427">
