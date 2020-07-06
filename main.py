@@ -1,6 +1,5 @@
 
 import os
-
 from xml.etree.ElementTree import parse
 
 '''
@@ -10,16 +9,20 @@ root = tree.getroot()
 print(root.find('./imgdir[@name="info"]/int[@name="exp"]').attrib['value'])
 '''
 
-mobList = {}
-for mob in os.listdir('./Mob'):
-    tree = parse('./Mob/' + mob)
-    root = tree.getroot()
+def mobLoad():
+    mobList = {}
+    for mob in os.listdir('./Mob'):
+        tree = parse('./Mob/' + mob)
+        root = tree.getroot()
 
-    try:
-        exp = int(root.find('./imgdir[@name="info"]/int[@name="exp"]').attrib['value'])
-        mobList[mob.split('.')[0]] = exp
-    except AttributeError:
-        continue
+        try:
+            exp = int(root.find('./imgdir[@name="info"]/int[@name="exp"]').attrib['value'])
+            mobList[mob.split('.')[0]] = exp
+        except AttributeError:
+            continue
 
+    print(mobList)
+    return mobList
 
-print(mobList)
+def mapLoad():
+
