@@ -92,10 +92,10 @@ for id, value in mapList.items():
 
 f = open('맵별 경험치 효율.csv', 'w', newline='')
 wr = csv.writer(f)
-wr.writerow(['ID', '거리 이름', '맵 이름', '평균 레벨', '경험치 효율'])
+wr.writerow(['ID', '거리 이름', '맵 이름', '평균 레벨', '몬스터 수', '젠률' '경험치 효율'])
 for id, value in mapList.items():
     try:
-        wr.writerow([id, value['streetName'], value['mapName'], value['avgLevel'], value['mapExp']])
+        wr.writerow([id, value['streetName'], value['mapName'], value['avgLevel'], len(value['life']), value['mobRate'], value['mapExp']])
     except KeyError:
         continue
 f.close()
