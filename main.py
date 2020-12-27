@@ -11,9 +11,10 @@ def mobLoad():
         tree = parse('./Mob/' + mob)
         root = tree.getroot()
 
-        # 경험치가 없는 몬스터는 패스~
+        # 경험치, 레벨이 없는 몬스터는 패스~
         try:
             root.find('./imgdir[@name="info"]/int[@name="exp"]').attrib['value']
+            root.find('./imgdir[@name="info"]/int[@name="level"]').attrib['value']
         except AttributeError:
             continue
 
