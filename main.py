@@ -1,17 +1,20 @@
 import csv
 import os
+from pathlib import Path
 from xml.etree.ElementTree import parse
+
+DATA_DIR = Path('data')
 
 
 # mob 불러와서 리스트에 담은 후 리턴
 def mob_load():
     mob_list = {}
-    for top, dirs, files in os.walk('./Mob'):
+    for top, dirs, files in os.walk(DATA_DIR / 'Mob'):
         for file in files:
-            if os.path.splitext(file)[1] != '.xml':
+            path = Path(top) / file
+            if path.suffix != '.xml':
                 continue
 
-            path = os.path.join(top, file)
             tree = parse(path)
             root = tree.getroot()
 
@@ -38,12 +41,12 @@ def mob_load():
 # map 불러와서 리스트에 담은 후 리턴
 def map_load():
     map_list = {}
-    for top, dirs, files in os.walk('./Map'):
+    for top, dirs, files in os.walk(DATA_DIR / 'Map'):
         for file in files:
-            if os.path.splitext(file)[1] != '.xml':
+            path = Path(top) / file
+            if path.suffix != '.xml':
                 continue
 
-            path = os.path.join(top, file)
             tree = parse(path)
             root = tree.getroot()
 
@@ -71,7 +74,7 @@ def map_load():
 
 # 맵 리스트에 맵 이름 추가하여 리턴
 def add_map_name(map_list):
-    tree = parse('String/Map.img.xml')
+    tree = parse(DATA_DIR / 'String/Map.img.xml')
     root = tree.getroot()
 
     for id, value in map_list.items():
