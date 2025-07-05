@@ -4,8 +4,8 @@ from xml.etree.ElementTree import parse
 
 
 # mob 불러와서 리스트에 담은 후 리턴
-def mobLoad():
-    mobList = {}
+def mob_load():
+    mob_list = {}
     for top, dirs, files in os.walk('./Mob'):
         for file in files:
             if os.path.splitext(file)[1] != '.xml':
@@ -23,21 +23,21 @@ def mobLoad():
                 continue
 
             # 해당 몬스터 아이디로 딕셔너리 생성
-            mobId = root.attrib['name'].split('.')[0]
-            mobList[mobId] = {}
+            mob_id = root.attrib['name'].split('.')[0]
+            mob_list[mob_id] = {}
 
             # 해당 몬스터의 레벨과 경험치 구하기
             exp = int(root.find('./imgdir[@name="info"]/int[@name="exp"]').attrib['value'])
             level = int(root.find('./imgdir[@name="info"]/int[@name="level"]').attrib['value'])
-            mobList[mobId]['exp'] = exp
-            mobList[mobId]['level'] = level
+            mob_list[mob_id]['exp'] = exp
+            mob_list[mob_id]['level'] = level
 
-    return mobList
+    return mob_list
 
 
 # map 불러와서 리스트에 담은 후 리턴
-def mapLoad():
-    mapList = {}
+def map_load():
+    map_list = {}
     for top, dirs, files in os.walk('./Map'):
         for file in files:
             if os.path.splitext(file)[1] != '.xml':
@@ -54,64 +54,62 @@ def mapLoad():
                 continue
 
             # 해당 맵 아이디로 딕셔너리 생성
-            mapId = root.attrib['name'].split('.')[0]
-            mapList[mapId] = {}
+            map_id = root.attrib['name'].split('.')[0]
+            map_list[map_id] = {}
 
             # 젠 속도 구하기
-            mobRate = float(root.find('./imgdir[@name="info"]/float[@name="mobRate"]').attrib['value'])
-            mapList[mapId]['mobRate'] = mobRate
+            mob_rate = float(root.find('./imgdir[@name="info"]/float[@name="mobRate"]').attrib['value'])
+            map_list[map_id]['mobRate'] = mob_rate
 
             # 해당 맵에 있는 몬스터 구하기
             life = root.findall('./imgdir[@name="life"]/imgdir')
             life = [mob for mob in life if mob.find('./string[@name="type"]').attrib['value'] == 'm']
-            mapList[mapId]['life'] = [m.find('string[@name="id"]').attrib['value'] for m in life]
+            map_list[map_id]['life'] = [m.find('string[@name="id"]').attrib['value'] for m in life]
 
-    return mapList
+    return map_list
 
 
 # 맵 리스트에 맵 이름 추가하여 리턴
-def addMapName(mapList):
+def add_map_name(map_list):
     tree = parse('String/Map.img.xml')
     root = tree.getroot()
 
-    for id, value in mapList.items():
+    for id, value in map_list.items():
         try:
-            stringMap = root.find('.//imgdir[@name="{}"]'.format(int(id)))
-            value['streetName'] = stringMap.find('./string[@name="streetName"]').attrib['value']
-            value['mapName'] = stringMap.find('./string[@name="mapName"]').attrib['value']
+            string_map = root.find('.//imgdir[@name="{}"]'.format(int(id)))
+            value['streetName'] = string_map.find('./string[@name="streetName"]').attrib['value']
+            value['mapName'] = string_map.find('./string[@name="mapName"]').attrib['value']
         except AttributeError:
             continue
 
-    return mapList
+    return map_list
 
 
 def main():
-    mobList = mobLoad()
-    mapList = addMapName(mapLoad())
+    mob_list = mob_load()
+    map_list = add_map_name(map_load())
 
-    for id, value in mapList.items():
+    for id, value in map_list.items():
         try:
-            sumExp = 0
-            sumLevel = 0
+            sum_exp = 0
+            sum_level = 0
             for mob in value['life']:
-                sumExp += mobList[mob]['exp']
-                sumLevel += mobList[mob]['level']
-            value['mapExp'] = int(sumExp * value['mobRate'])
-            value['avgLevel'] = int(sumLevel / len(value['life']))
+                sum_exp += mob_list[mob]['exp']
+                sum_level += mob_list[mob]['level']
+            value['mapExp'] = int(sum_exp * value['mobRate'])
+            value['avgLevel'] = int(sum_level / len(value['life']))
         except KeyError:
             continue
 
-    f = open('맵별 경험치 효율.csv', 'w', newline='')
-    wr = csv.writer(f)
-    wr.writerow(['ID', '거리 이름', '맵 이름', '평균 레벨', '몬스터 수', '젠률', '경험치 효율'])
-    for id, value in mapList.items():
-        try:
-            wr.writerow([id, value['streetName'], value['mapName'], value['avgLevel'], len(value['life']),
-                         value['mobRate'], value['mapExp']])
-        except KeyError:
-            continue
-    f.close()
+    with open('맵별 경험치 효율.csv', 'w', newline='', encoding='utf-8') as f:
+        writer = csv.writer(f)
+        writer.writerow(['streetName', 'mapName', 'avgLevel', 'mapExp'])
+        for id, value in map_list.items():
+            try:
+                writer.writerow([value['streetName'], value['mapName'], value['avgLevel'], value['mapExp']])
+            except KeyError:
+                continue
 
 
-if __name__ == "__main__":
+if __name__ == '__main__':
     main()
