@@ -1,4 +1,4 @@
-import 'WzComparerR2.PluginBase'
+﻿import 'WzComparerR2.PluginBase'
 import 'WzComparerR2.WzLib'
 import 'System.IO'
 import 'System.Xml'
@@ -7,7 +7,7 @@ import 'System.Xml'
 -- Wz_Image 타입인지 확인하는 헬퍼 함수
 function isWzImage(value)
   return value and type(value) == "userdata"
-    and (value:GetType().Name == 'Wz_Image' or value:GetType().Name == 'Ms_Image')
+    and (value:GetType().Name == 'Wz_Image' or value:GetType().Name == 'Ms_Image' or value:GetType().Name == 'Ms_ImageV2')
 end
 
 ------------------------------------------------------------
