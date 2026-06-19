@@ -290,3 +290,11 @@ pyrightconfig.json
 
 # data directory
 data/
+
+# WzComparerR2 번들 (빌드본 전체를 추적)
+!WzComparerR2/
+!WzComparerR2/**
+
+# WzComparerR2 실행 시 생성되는 설정/로그 (커밋 제외)
+WzComparerR2/Setting.config
+WzComparerR2/error.log

@@ -28,7 +28,7 @@ local targetNodePaths = {
 }
 
 -- XML 파일을 저장할 최상위 폴더
-local outputDir = "./data"
+local outputDir = "../data"
 
 ------------------------------------------------------------
 -- 메인 함수
