@@ -5,6 +5,11 @@ from xml.etree.ElementTree import parse
 
 DATA_DIR = Path('data')
 
+SPAWN_TICK = 7.0  # 리젠 틱 주기 (초)
+TICK_ALIGN_DELAY = 3.5  # 리젠 완료 후 다음 틱까지 기대 대기 시간 (SPAWN_TICK / 2)
+REGEN_MULTIPLIER = 1.65  # 리젠 대기 uniform(1.3, 2.0) x mobTime 의 기대 배수
+CAPACITY_CONSTANT = 0.0000078125  # BMS CLifePool::Init 의 수용량 상수 (= 1/128000)
+
 
 # mob 불러와서 리스트에 담은 후 리턴
 def load_mob():
@@ -49,6 +54,116 @@ def load_map_name():
     return map_name_dict
 
 
+# info 노드에서 정수 값 구하기 (없으면 기본값)
+def find_info_int(root, name, default=0):
+    node = root.find(f'./dir[@name="info"]/int32[@name="{name}"]')
+    return int(node.attrib['value']) if node is not None else default
+
+
+# 발판(foothold) 경계 사각형으로 맵 크기 계산 (BMS CFieldMan::RestoreFoothold 재현)
+def calc_map_size(root):
+    mbr_left = float('inf')
+    mbr_top = float('inf')
+    mbr_right = float('-inf')
+    mbr_bottom = float('-inf')
+
+    for fh in root.findall('./dir[@name="foothold"]//int32[@name="x1"]/..'):
+        x1 = int(fh.find('int32[@name="x1"]').attrib['value'])
+        y1 = int(fh.find('int32[@name="y1"]').attrib['value'])
+        x2 = int(fh.find('int32[@name="x2"]').attrib['value'])
+        y2 = int(fh.find('int32[@name="y2"]').attrib['value'])
+        left, right = min(x1, x2), max(x1, x2)
+        top, bottom = min(y1, y2), max(y1, y2)
+
+        mbr_left = min(mbr_left, left + 30)
+        mbr_right = max(mbr_right, right - 30)
+        mbr_top = min(mbr_top, top - 300)
+        # 걸을 수 없는 수직 벽은 bottom 갱신에서 제외
+        if left != right:
+            mbr_bottom = max(mbr_bottom, bottom + 10)
+
+    # 발판이 없거나 수직 벽뿐인 맵은 크기 계산 불가
+    if mbr_left == float('inf') or mbr_bottom == float('-inf'):
+        return None
+
+    # VR 경계로 클램프 (값이 0이거나 없으면 미적용)
+    vr_left = find_info_int(root, 'VRLeft')
+    vr_right = find_info_int(root, 'VRRight')
+    vr_top = find_info_int(root, 'VRTop')
+    vr_bottom = find_info_int(root, 'VRBottom')
+    if vr_left != 0 and mbr_left < vr_left + 20:
+        mbr_left = vr_left + 20
+    if vr_right != 0 and mbr_right > vr_right - 20:
+        mbr_right = vr_right - 20
+    if vr_top != 0 and mbr_top < vr_top + 65:
+        mbr_top = vr_top + 65
+    if vr_bottom != 0 and mbr_bottom > vr_bottom:
+        mbr_bottom = vr_bottom
+
+    # inflate(10, 10)
+    mbr_left -= 10
+    mbr_top -= 10
+    mbr_right += 10
+    mbr_bottom += 10
+
+    return mbr_right - mbr_left, mbr_bottom - mbr_top
+
+
+# 맵의 몹 수용량 계산 (BMS CLifePool::Init 재현)
+def calc_mob_capacity(root, mob_rate):
+    # 고정 수용량이 지정된 맵은 그 값을 그대로 사용
+    fixed_capacity = find_info_int(root, 'fixedMobCapacity')
+    if fixed_capacity > 0:
+        return fixed_capacity
+
+    map_size = calc_map_size(root)
+    map_width, map_height = map_size if map_size is not None else (0, 0)
+    width = max(800, map_width)
+    height = max(600, map_height - 450)
+    return max(1, min(40, int(width * height * mob_rate * CAPACITY_CONSTANT)))
+
+
+# life 노드에서 몬스터 스폰 포인트 (몬스터 아이디, 리젠 주기) 리스트 구하기
+def parse_spawn_points(root):
+    spawn_points = []
+    for mob in root.findall('./dir[@name="life"]//string[@name="type"][@value="m"]/..'):
+        mob_id = int(mob.find('string[@name="id"]').attrib['value'])
+        mob_time_node = mob.find('int32[@name="mobTime"]')
+        mob_time = int(mob_time_node.attrib['value']) if mob_time_node is not None else 0
+        spawn_points.append((mob_id, mob_time))
+    return spawn_points
+
+
+# 솔로 플레이 + 스폰 즉시 처치 가정의 정상상태 분당 경험치 계산
+def calc_exp_per_minute(spawn_points, mob_dict, capacity):
+    normal_exps = []  # mobTime == 0: 7초 틱마다 수용량 한도까지 스폰
+    timed_spawns = []  # mobTime > 0: 사망 후 mobTime x 1.3~2.0 뒤 리젠
+    for mob_id, mob_time in spawn_points:
+        # 덤프에 exp 노드가 없는 몬스터는 실제 exp 0 (WZ 기본값 생략)
+        exp = mob_dict[mob_id]['exp'] if mob_id in mob_dict else 0
+        if mob_time == 0:
+            normal_exps.append(exp)
+        elif mob_time > 0:
+            timed_spawns.append((exp, mob_time))
+        # mobTime == -1 은 맵 리셋 시 1회만 스폰되므로 제외
+
+    # 시간 젠: 스폰 포인트마다 (리젠 대기 + 틱 정렬 대기)당 1마리
+    exp_per_sec = 0.0
+    timed_rate_sum = 0.0
+    for exp, mob_time in timed_spawns:
+        rate = 1 / (REGEN_MULTIPLIER * mob_time + TICK_ALIGN_DELAY)
+        timed_rate_sum += rate
+        exp_per_sec += exp * rate
+
+    # 일반 젠: 시간 젠이 우선 소비하는 수용량을 제외하고 틱마다 min(수용량, 포인트 수)마리 스폰
+    effective_capacity = max(0.0, capacity - SPAWN_TICK * timed_rate_sum)
+    if normal_exps:
+        avg_exp = sum(normal_exps) / len(normal_exps)
+        exp_per_sec += min(effective_capacity, len(normal_exps)) * avg_exp / SPAWN_TICK
+
+    return exp_per_sec * 60
+
+
 # map 불러와서 리스트에 담은 후 리턴
 def load_map():
     map_dict = defaultdict(dict)
@@ -75,34 +190,31 @@ def load_map():
         map_dict[map_id]['streetName'] = map_name_dict[map_id]['streetName']
         map_dict[map_id]['mapName'] = map_name_dict[map_id]['mapName']
 
-        # 젠 속도 구하기
-        mob_rate = float(root.find('./dir[@name="info"]/single[@name="mobRate"]').attrib['value'])
+        # 젠 속도 구하기 (없는 맵은 기본값 1.0)
+        mob_rate_node = root.find('./dir[@name="info"]/single[@name="mobRate"]')
+        mob_rate = float(mob_rate_node.attrib['value']) if mob_rate_node is not None else 1.0
         map_dict[map_id]['mobRate'] = mob_rate
 
-        # 해당 맵에 있는 몬스터 구하기
-        mob_ids = [
-            int(mob.find('string[@name="id"]').attrib['value'])
-            for mob in root.findall('./dir[@name="life"]//string[@name="type"][@value="m"]/..')
-        ]
-        map_dict[map_id]['life'] = mob_ids
+        # 해당 맵에 있는 몬스터 스폰 포인트 구하기
+        spawn_points = parse_spawn_points(root)
+        map_dict[map_id]['mobCount'] = len(spawn_points)
 
-        # 평균 레벨, 맵 경험치 구하기
-        sum_exp = 0
+        # 몹 수용량 구하기
+        capacity = calc_mob_capacity(root, mob_rate)
+        map_dict[map_id]['mobCapacity'] = capacity
+
+        # 평균 레벨 구하기
         sum_level = 0
         mob_count = 0
-        for mob in mob_ids:
-            if mob not in mob_dict:
+        for mob_id, _ in spawn_points:
+            if mob_id not in mob_dict:
                 continue
-            sum_exp += mob_dict[mob]['exp']
-            sum_level += mob_dict[mob]['level']
+            sum_level += mob_dict[mob_id]['level']
             mob_count += 1
+        map_dict[map_id]['avgLevel'] = int(sum_level / mob_count) if mob_count > 0 else 0
 
-        if mob_count > 0:
-            map_dict[map_id]['mapExp'] = int(sum_exp * mob_rate)
-            map_dict[map_id]['avgLevel'] = int(sum_level / mob_count)
-        else:
-            map_dict[map_id]['mapExp'] = 0
-            map_dict[map_id]['avgLevel'] = 0
+        # 분당 경험치 구하기
+        map_dict[map_id]['expPerMin'] = int(calc_exp_per_minute(spawn_points, mob_dict, capacity))
 
     return map_dict
 
@@ -110,12 +222,12 @@ def load_map():
 def main():
     map_list = load_map()
 
-    with open('맵별 경험치 효율.csv', 'w', newline='') as f:
+    with open('맵별 경험치 효율.csv', 'w', newline='', encoding='utf-8-sig') as f:
         writer = csv.writer(f)
-        writer.writerow(['ID', '거리 이름', '맵 이름', '평균 레벨', '몬스터 수', '젠률', '경험치 효율'])
+        writer.writerow(['ID', '거리 이름', '맵 이름', '평균 레벨', '몬스터 수', '젠률', '몹 수용량', '분당 경험치'])
         for map_id, data in map_list.items():
-            writer.writerow([map_id, data['streetName'], data['mapName'], data['avgLevel'], len(data['life']),
-                             data['mobRate'], data['mapExp']])
+            writer.writerow([map_id, data['streetName'], data['mapName'], data['avgLevel'], data['mobCount'],
+                             data['mobRate'], data['mobCapacity'], data['expPerMin']])
 
 
 if __name__ == '__main__':
