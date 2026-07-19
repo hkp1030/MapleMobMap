@@ -213,8 +213,9 @@ def load_map():
             mob_count += 1
         map_dict[map_id]['avgLevel'] = int(sum_level / mob_count) if mob_count > 0 else 0
 
-        # 분당 경험치 구하기
-        map_dict[map_id]['expPerMin'] = int(calc_exp_per_minute(spawn_points, mob_dict, capacity))
+        # 분당 경험치 구하기 (수용량 기준 / 몬스터 수 기준)
+        map_dict[map_id]['expPerMinCap'] = int(calc_exp_per_minute(spawn_points, mob_dict, capacity))
+        map_dict[map_id]['expPerMinFull'] = int(calc_exp_per_minute(spawn_points, mob_dict, float('inf')))
 
     return map_dict
 
@@ -224,10 +225,11 @@ def main():
 
     with open('맵별 경험치 효율.csv', 'w', newline='', encoding='utf-8-sig') as f:
         writer = csv.writer(f)
-        writer.writerow(['ID', '거리 이름', '맵 이름', '평균 레벨', '몬스터 수', '젠률', '몹 수용량', '분당 경험치'])
+        writer.writerow(['ID', '거리 이름', '맵 이름', '평균 레벨', '몬스터 수', '젠률', '몹 수용량',
+                         '분당 경험치(수용량 기준)', '분당 경험치(몬스터 수 기준)'])
         for map_id, data in map_list.items():
             writer.writerow([map_id, data['streetName'], data['mapName'], data['avgLevel'], data['mobCount'],
-                             data['mobRate'], data['mobCapacity'], data['expPerMin']])
+                             data['mobRate'], data['mobCapacity'], data['expPerMinCap'], data['expPerMinFull']])
 
 
 if __name__ == '__main__':
