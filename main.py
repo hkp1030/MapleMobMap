@@ -234,12 +234,13 @@ def main():
 
     with open('맵별 경험치 효율.csv', 'w', newline='', encoding='utf-8-sig') as f:
         writer = csv.writer(f)
-        writer.writerow(['ID', '거리 이름', '맵 이름', '평균 레벨', '스폰 지점 수', '맵 너비', '맵 높이', '맵 면적',
-                         '수용량 배율', '몹 수용량', '분당 경험치(수용량 기준)', '분당 경험치(스폰 지점 기준)'])
+        writer.writerow(['ID', '거리 이름', '맵 이름', '평균 레벨', '맵 너비', '맵 높이', '맵 면적',
+                         '수용량 배율', '몹 수용량', '스폰 지점 수', '분당 경험치(수용량 기준)', '분당 경험치(스폰 지점 기준)'])
         for map_id, data in map_list.items():
             writer.writerow([map_id, data['streetName'], data['mapName'], data['avgLevel'],
-                             data['spawnPointCount'], data['mapWidth'], data['mapHeight'], data['mapArea'],
-                             data['mobRate'], data['mobCapacity'], data['expPerMinCap'], data['expPerMinFull']])
+                             data['mapWidth'], data['mapHeight'], data['mapArea'],
+                             data['mobRate'], data['mobCapacity'], data['spawnPointCount'],
+                             data['expPerMinCap'], data['expPerMinFull']])
 
 
 if __name__ == '__main__':
