@@ -197,7 +197,7 @@ def load_map():
 
         # 해당 맵에 있는 몬스터 스폰 포인트 구하기
         spawn_points = parse_spawn_points(root)
-        map_dict[map_id]['mobCount'] = len(spawn_points)
+        map_dict[map_id]['spawnPointCount'] = len(spawn_points)
 
         # 몹 수용량 구하기
         capacity = calc_mob_capacity(root, mob_rate)
@@ -225,11 +225,12 @@ def main():
 
     with open('맵별 경험치 효율.csv', 'w', newline='', encoding='utf-8-sig') as f:
         writer = csv.writer(f)
-        writer.writerow(['ID', '거리 이름', '맵 이름', '평균 레벨', '몬스터 수', '젠률', '몹 수용량',
-                         '분당 경험치(수용량 기준)', '분당 경험치(몬스터 수 기준)'])
+        writer.writerow(['ID', '거리 이름', '맵 이름', '평균 레벨', '스폰 지점 수', '젠률', '몹 수용량',
+                         '분당 경험치(수용량 기준)', '분당 경험치(스폰 지점 기준)'])
         for map_id, data in map_list.items():
-            writer.writerow([map_id, data['streetName'], data['mapName'], data['avgLevel'], data['mobCount'],
-                             data['mobRate'], data['mobCapacity'], data['expPerMinCap'], data['expPerMinFull']])
+            writer.writerow([map_id, data['streetName'], data['mapName'], data['avgLevel'],
+                             data['spawnPointCount'], data['mobRate'], data['mobCapacity'],
+                             data['expPerMinCap'], data['expPerMinFull']])
 
 
 if __name__ == '__main__':
