@@ -110,13 +110,12 @@ def calc_map_size(root):
 
 
 # 맵의 몹 수용량 계산 (BMS CLifePool::Init 재현)
-def calc_mob_capacity(root, mob_rate):
+def calc_mob_capacity(root, mob_rate, map_size):
     # 고정 수용량이 지정된 맵은 그 값을 그대로 사용
     fixed_capacity = find_info_int(root, 'fixedMobCapacity')
     if fixed_capacity > 0:
         return fixed_capacity
 
-    map_size = calc_map_size(root)
     map_width, map_height = map_size if map_size is not None else (0, 0)
     width = max(800, map_width)
     height = max(600, map_height - 450)
@@ -190,7 +189,7 @@ def load_map():
         map_dict[map_id]['streetName'] = map_name_dict[map_id]['streetName']
         map_dict[map_id]['mapName'] = map_name_dict[map_id]['mapName']
 
-        # 젠 속도 구하기 (없는 맵은 기본값 1.0)
+        # 수용량 배율(mobRate) 구하기 (없는 맵은 기본값 1.0)
         mob_rate_node = root.find('./dir[@name="info"]/single[@name="mobRate"]')
         mob_rate = float(mob_rate_node.attrib['value']) if mob_rate_node is not None else 1.0
         map_dict[map_id]['mobRate'] = mob_rate
@@ -199,8 +198,18 @@ def load_map():
         spawn_points = parse_spawn_points(root)
         map_dict[map_id]['spawnPointCount'] = len(spawn_points)
 
+        # 맵 크기 구하기 (발판이 없어 계산 불가능한 맵은 빈 값)
+        map_size = calc_map_size(root)
+        if map_size is not None:
+            map_dict[map_id]['mapWidth'], map_dict[map_id]['mapHeight'] = map_size
+            map_dict[map_id]['mapArea'] = map_size[0] * map_size[1]
+        else:
+            map_dict[map_id]['mapWidth'] = ''
+            map_dict[map_id]['mapHeight'] = ''
+            map_dict[map_id]['mapArea'] = ''
+
         # 몹 수용량 구하기
-        capacity = calc_mob_capacity(root, mob_rate)
+        capacity = calc_mob_capacity(root, mob_rate, map_size)
         map_dict[map_id]['mobCapacity'] = capacity
 
         # 평균 레벨 구하기
@@ -225,12 +234,12 @@ def main():
 
     with open('맵별 경험치 효율.csv', 'w', newline='', encoding='utf-8-sig') as f:
         writer = csv.writer(f)
-        writer.writerow(['ID', '거리 이름', '맵 이름', '평균 레벨', '스폰 지점 수', '젠률', '몹 수용량',
-                         '분당 경험치(수용량 기준)', '분당 경험치(스폰 지점 기준)'])
+        writer.writerow(['ID', '거리 이름', '맵 이름', '평균 레벨', '스폰 지점 수', '맵 너비', '맵 높이', '맵 면적',
+                         '수용량 배율', '몹 수용량', '분당 경험치(수용량 기준)', '분당 경험치(스폰 지점 기준)'])
         for map_id, data in map_list.items():
             writer.writerow([map_id, data['streetName'], data['mapName'], data['avgLevel'],
-                             data['spawnPointCount'], data['mobRate'], data['mobCapacity'],
-                             data['expPerMinCap'], data['expPerMinFull']])
+                             data['spawnPointCount'], data['mapWidth'], data['mapHeight'], data['mapArea'],
+                             data['mobRate'], data['mobCapacity'], data['expPerMinCap'], data['expPerMinFull']])
 
 
 if __name__ == '__main__':
